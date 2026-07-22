@@ -1,7 +1,7 @@
 name: Wheel of Goods
 brand: Fantom Zone Arcade
 current_focus: Convert the existing survey prototype into official wheel-and-word-puzzle gameplay without redesigning the UI.
-status: ready_to_deploy
+status: complete
 
 official_rules_prd:
   source: https://www.hasbro.com/common/instruct/wheel_of_fortune_rules_and_letter_guide.pdf
@@ -51,10 +51,13 @@ verification:
   gameplay_smoke_test: passed_opening_spin_consonant_vowel_solve
   mobile_visibility_390x844: passed_no_horizontal_overflow_all_core_regions_visible
   visual_stylesheet_changes: none
-  cloudflare_deploy: pending
-  github_push: pending
+  cloudflare_deploy: passed_worker_version_0ef7d304-60ee-48eb-828d-c2aada83e25d
+  live_domain_check: passed
+  github_push: passed
 
 deployment:
   github: git@github.com:workceostewart-lang/Wheel-of-Goods.git
   domain: wheel-of-goods.fantomzone.app
   platform: Cloudflare
+  sites_version: 2
+  sites_production: https://wheel-of-goods.unknownfigure.chatgpt.site
