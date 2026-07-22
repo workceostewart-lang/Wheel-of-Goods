@@ -1,0 +1,20 @@
+name: Wheel of Goods
+brand: Fantom Zone Arcade
+goal: A fast, family-friendly local multiplayer survey-and-wheel game for PC and mobile.
+
+product_rules:
+  - Keep the active question visible for the entire answering phase.
+  - On mobile, keep the question, wheel, all six answer slots, strikes, active player, and money visible without page scrolling.
+  - Use a joyful full-rainbow arcade palette with strong contrast and large touch targets.
+  - Support 1–4 local players and keyboard, mouse, and touch input.
+  - Generate sound effects in-browser; do not rely on third-party media.
+
+quality_bar:
+  - Build successfully before deployment.
+  - Test menu, setup, spin, answer, wrong-answer, score, and responsive layouts.
+  - Preserve accessible labels, focus states, reduced motion, and a sound toggle.
+
+deployment:
+  github: git@github.com:workceostewart-lang/Wheel-of-Goods.git
+  domain: wheel-of-goods.fantomzone.app
+  platform: Cloudflare
