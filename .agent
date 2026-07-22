@@ -1,18 +1,58 @@
 name: Wheel of Goods
 brand: Fantom Zone Arcade
-goal: A fast, family-friendly local multiplayer survey-and-wheel game for PC and mobile.
+current_focus: Convert the existing survey prototype into official wheel-and-word-puzzle gameplay without redesigning the UI.
+status: ready_to_deploy
 
-product_rules:
-  - Keep the active question visible for the entire answering phase.
-  - On mobile, keep the question, wheel, all six answer slots, strikes, active player, and money visible without page scrolling.
-  - Use a joyful full-rainbow arcade palette with strong contrast and large touch targets.
-  - Support 1–4 local players and keyboard, mouse, and touch input.
-  - Generate sound effects in-browser; do not rely on third-party media.
+official_rules_prd:
+  source: https://www.hasbro.com/common/instruct/wheel_of_fortune_rules_and_letter_guide.pdf
+  authority: Hasbro Wheel of Fortune Rules and Letter Guide
+  reviewed_pages: [3, 4, 5, 6]
+  rules_in_scope:
+    - Every multiplayer game begins with an opening spin; the highest cash value starts.
+    - A cash wedge requires a consonant and pays its value for every matching occurrence.
+    - A vowel costs $250 in round cash and may be bought before spinning.
+    - A correct consonant keeps the turn; a missing or repeated consonant ends it.
+    - Lose a Turn passes play without changing banked game winnings.
+    - Bankrupt removes only cash and prizes earned in the current round.
+    - Prize and Free Spin wedges require a correct consonant to be claimed.
+    - A puzzle may be solved before spinning; an incorrect solve forfeits that player's round winnings.
+    - Only the puzzle solver banks the round's cash and prizes; other round winnings are returned.
+    - The previous round winner starts the next round.
+    - If nobody solves, everyone spins again to determine the next starter.
+    - The first player to reach $10,000 in banked cash and prizes wins.
+    - Solo play ignores Lose a Turn and Free Spin wedges.
 
-quality_bar:
-  - Build successfully before deployment.
-  - Test menu, setup, spin, answer, wrong-answer, score, and responsive layouts.
-  - Preserve accessible labels, focus states, reduced motion, and a sound toggle.
+non_negotiable_ui_invariants:
+  - Do not change the existing visual design, colors, spacing, typography, responsive layout, or component structure.
+  - Keep the puzzle prompt, all six board rows, full wheel, status, active player, and money visible together on mobile.
+  - Reuse the existing spin, answer, next-player, and next-round controls for the official rule actions.
+  - Preserve sound, reduced-motion support, keyboard entry, touch controls, and accessible labels.
+
+gameplay_state:
+  opening_spin: implemented
+  consonant_calls: implemented
+  vowel_purchase: implemented
+  puzzle_solving: implemented
+  round_cash: implemented
+  prize_wedge: implemented
+  free_spin: implemented_as_player_choice
+  lose_a_turn: implemented
+  bankrupt: implemented_round_only
+  incorrect_solution_elimination: implemented
+  previous_winner_starts: implemented
+  ten_thousand_win_condition: implemented
+  solo_variation: implemented
+
+verification:
+  pure_rule_tests: passed_7_of_7
+  rendered_shell_tests: passed_2_of_2
+  production_build: passed
+  lint: passed_zero_warnings
+  gameplay_smoke_test: passed_opening_spin_consonant_vowel_solve
+  mobile_visibility_390x844: passed_no_horizontal_overflow_all_core_regions_visible
+  visual_stylesheet_changes: none
+  cloudflare_deploy: pending
+  github_push: pending
 
 deployment:
   github: git@github.com:workceostewart-lang/Wheel-of-Goods.git

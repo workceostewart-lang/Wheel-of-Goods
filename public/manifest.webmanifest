@@ -1,7 +1,7 @@
 {
   "name": "Wheel of Goods",
   "short_name": "Wheel Goods",
-  "description": "A colorful survey-and-wheel game for game night.",
+  "description": "A colorful wheel-and-word-puzzle game for game night.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#111856",

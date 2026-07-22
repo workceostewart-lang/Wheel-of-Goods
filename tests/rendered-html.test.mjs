@@ -25,10 +25,13 @@ test("server-renders the Wheel of Goods menu", async () => {
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });
 
-test("ships the full survey game content in the initial bundle", async () => {
+test("ships the official-rules puzzle game shell", async () => {
   const response = await render();
   const html = await response.text();
   assert.match(html, /Wheel of Goods/);
   assert.match(html, /Fantom Zone Arcade/i);
+  assert.match(html, /Official wheel rules/i);
+  assert.match(html, /Spin big\. Call letters\. Solve the puzzle/i);
+  assert.match(html, /call letters, solve word puzzles/i);
   assert.match(html, /manifest\.webmanifest/);
 });

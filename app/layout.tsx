@@ -16,7 +16,7 @@ const body = Nunito_Sans({
 export const metadata: Metadata = {
   metadataBase: new URL("https://wheel-of-goods.fantomzone.app"),
   title: "Wheel of Goods | Fantom Zone Arcade",
-  description: "Spin the rainbow wheel, find the top survey answers, and build a game-night fortune.",
+  description: "Spin the rainbow wheel, call letters, solve word puzzles, and build a game-night fortune.",
   applicationName: "Wheel of Goods",
   manifest: "/manifest.webmanifest",
   icons: {
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Wheel of Goods",
-    description: "Every answer has a price. Spin, answer, and win!",
+    description: "Spin the wheel, call letters, solve the puzzle, and win!",
     type: "website",
     siteName: "Fantom Zone Arcade",
     images: [{ url: "/og.png", width: 1731, height: 909, alt: "Wheel of Goods rainbow prize wheel" }],
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Wheel of Goods",
-    description: "Every answer has a price. Spin, answer, and win!",
+    description: "Spin the wheel, call letters, solve the puzzle, and win!",
     images: ["/og.png"],
   },
 };

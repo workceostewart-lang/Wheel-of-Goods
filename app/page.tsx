@@ -1,21 +1,24 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  allPuzzleLetters,
+  countLetter,
+  isConsonant,
+  isVowel,
+  isWordRevealed,
+  maskWord,
+  nextActivePlayer,
+  normalizePhrase,
+  PRIZE_VALUE,
+  PUZZLES,
+  VOWEL_COST,
+  WINNING_TOTAL,
+} from "./game-rules";
 
 type Screen = "menu" | "setup" | "game" | "rules";
-type Phase = "spin" | "spinning" | "answer" | "turnOver" | "roundOver" | "gameOver";
+type Phase = "qualifying" | "spin" | "spinning" | "answer" | "freeSpinChoice" | "turnOver" | "roundOver" | "gameOver";
 type SoundName = "click" | "spin" | "correct" | "wrong" | "win";
-
-type Answer = {
-  label: string;
-  points: number;
-  aliases?: string[];
-};
-
-type Question = {
-  prompt: string;
-  answers: Answer[];
-};
 
 type Player = {
   name: string;
@@ -25,91 +28,26 @@ type Player = {
 
 type WheelResult = {
   label: string;
-  type: "cash" | "multiplier" | "bankrupt" | "lose";
+  type: "cash" | "prize" | "freeSpin" | "bankrupt" | "lose";
   value: number;
 };
 
 const PLAYER_COLORS = ["#4f7cff", "#31cf80", "#ff4d62", "#a855f7"];
 
-const QUESTIONS: Question[] = [
-  {
-    prompt: "Name something people buy at the grocery store every week.",
-    answers: [
-      { label: "Milk", points: 36 },
-      { label: "Bread", points: 27 },
-      { label: "Eggs", points: 18 },
-      { label: "Fruit", points: 10, aliases: ["fruits"] },
-      { label: "Snacks", points: 6, aliases: ["snack"] },
-      { label: "Coffee", points: 3 },
-    ],
-  },
-  {
-    prompt: "Name a gift people are always happy to receive.",
-    answers: [
-      { label: "Cash", points: 32, aliases: ["money"] },
-      { label: "Gift card", points: 24, aliases: ["voucher"] },
-      { label: "Vacation", points: 18, aliases: ["trip", "travel"] },
-      { label: "Electronics", points: 12, aliases: ["phone", "tablet"] },
-      { label: "Jewelry", points: 8, aliases: ["jewellery"] },
-      { label: "Books", points: 6, aliases: ["book"] },
-    ],
-  },
-  {
-    prompt: "Name something you might find in a shopping cart.",
-    answers: [
-      { label: "Groceries", points: 34, aliases: ["food"] },
-      { label: "Clothes", points: 22, aliases: ["clothing"] },
-      { label: "Toys", points: 17, aliases: ["toy"] },
-      { label: "Home supplies", points: 12, aliases: ["household supplies"] },
-      { label: "Electronics", points: 9, aliases: ["phone", "computer"] },
-      { label: "Pet food", points: 6, aliases: ["dog food", "cat food"] },
-    ],
-  },
-  {
-    prompt: "Name something people compare before buying.",
-    answers: [
-      { label: "Price", points: 38, aliases: ["cost"] },
-      { label: "Reviews", points: 23, aliases: ["ratings"] },
-      { label: "Quality", points: 16 },
-      { label: "Features", points: 10 },
-      { label: "Brand", points: 8 },
-      { label: "Warranty", points: 5 },
-    ],
-  },
-  {
-    prompt: "Name something that makes a store fun to visit.",
-    answers: [
-      { label: "Good deals", points: 31, aliases: ["sales", "discounts", "deals"] },
-      { label: "Free samples", points: 24, aliases: ["samples"] },
-      { label: "Friendly staff", points: 17, aliases: ["staff", "employees"] },
-      { label: "Music", points: 11 },
-      { label: "Cool displays", points: 9, aliases: ["displays"] },
-      { label: "Food court", points: 8, aliases: ["food"] },
-    ],
-  },
-];
-
 const WHEEL_RESULTS: WheelResult[] = [
   { label: "$100", type: "cash", value: 100 },
   { label: "$250", type: "cash", value: 250 },
-  { label: "×2", type: "multiplier", value: 2 },
+  { label: "PRIZE", type: "prize", value: PRIZE_VALUE },
   { label: "$500", type: "cash", value: 500 },
   { label: "LOSE", type: "lose", value: 0 },
   { label: "$750", type: "cash", value: 750 },
   { label: "$150", type: "cash", value: 150 },
-  { label: "×3", type: "multiplier", value: 3 },
+  { label: "FREE", type: "freeSpin", value: 0 },
   { label: "$400", type: "cash", value: 400 },
-  { label: "BUST", type: "bankrupt", value: 0 },
+  { label: "BANKRUPT", type: "bankrupt", value: 0 },
   { label: "$1K", type: "cash", value: 1000 },
-  { label: "$300", type: "cash", value: 300 },
+  { label: "$600", type: "cash", value: 600 },
 ];
-
-const normalize = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9 ]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("menu");
@@ -118,11 +56,18 @@ export default function Home() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentPlayer, setCurrentPlayer] = useState(0);
   const [round, setRound] = useState(0);
-  const [revealed, setRevealed] = useState<number[]>([]);
+  const [guessedLetters, setGuessedLetters] = useState<string[]>([]);
   const [strikes, setStrikes] = useState(0);
-  const [phase, setPhase] = useState<Phase>("spin");
+  const [phase, setPhase] = useState<Phase>("qualifying");
   const [wheelRotation, setWheelRotation] = useState(0);
   const [wheelResult, setWheelResult] = useState<WheelResult | null>(null);
+  const [roundBanks, setRoundBanks] = useState<number[]>([]);
+  const [roundPrizes, setRoundPrizes] = useState<number[]>([]);
+  const [freeSpins, setFreeSpins] = useState<number[]>([]);
+  const [pendingTurnLoss, setPendingTurnLoss] = useState<{ reason: string; bankrupt: boolean } | null>(null);
+  const [eliminatedPlayers, setEliminatedPlayers] = useState<number[]>([]);
+  const [qualifyingValues, setQualifyingValues] = useState<number[]>([]);
+  const [roundWinner, setRoundWinner] = useState<number | null>(null);
   const [guess, setGuess] = useState("");
   const [message, setMessage] = useState("Spin the wheel to start!");
   const [soundOn, setSoundOn] = useState(true);
@@ -131,7 +76,7 @@ export default function Home() {
   const audioRef = useRef<AudioContext | null>(null);
   const spinTimerRef = useRef<number | null>(null);
 
-  const question = QUESTIONS[round % QUESTIONS.length];
+  const puzzle = PUZZLES[round % PUZZLES.length];
 
   useEffect(() => {
     return () => {
@@ -188,53 +133,140 @@ export default function Home() {
     setPlayers(gamePlayers);
     setCurrentPlayer(0);
     setRound(0);
-    setRevealed([]);
+    setGuessedLetters([]);
     setStrikes(0);
-    setPhase("spin");
+    setRoundBanks(Array(playerCount).fill(0));
+    setRoundPrizes(Array(playerCount).fill(0));
+    setFreeSpins(Array(playerCount).fill(0));
+    setEliminatedPlayers([]);
+    setQualifyingValues(Array(playerCount).fill(0));
+    setRoundWinner(null);
+    setPhase(playerCount === 1 ? "spin" : "qualifying");
     setWheelResult(null);
+    setPendingTurnLoss(null);
     setGuess("");
-    setMessage(`${gamePlayers[0].name}, spin the wheel!`);
+    setMessage(
+      playerCount === 1
+        ? `${gamePlayers[0].name}, spin the wheel!`
+        : `${gamePlayers[0].name}, spin for the starting position!`,
+    );
     playSound("win");
     setScreen("game");
   };
 
   const advancePlayer = useCallback(() => {
-    setCurrentPlayer((player) => (players.length ? (player + 1) % players.length : 0));
+    const nextIndex = nextActivePlayer(currentPlayer, players.length, eliminatedPlayers);
     setWheelResult(null);
     setGuess("");
-    setPhase("spin");
-    const nextIndex = players.length ? (currentPlayer + 1) % players.length : 0;
-    setMessage(`${players[nextIndex]?.name ?? "Next player"}, spin the wheel!`);
-  }, [currentPlayer, players]);
-
-  const finishRound = useCallback(() => {
-    if (round >= QUESTIONS.length - 1) {
-      setPhase("gameOver");
-      setMessage("That’s the game! Count up the goods!");
-      playSound("win");
-    } else {
+    if (nextIndex === null || eliminatedPlayers.length >= players.length) {
+      setRoundWinner(null);
       setPhase("roundOver");
-      setMessage(`Round ${round + 1} complete!`);
-      playSound("win");
+      setRoundBanks(Array(players.length).fill(0));
+      setRoundPrizes(Array(players.length).fill(0));
+      setMessage("No one solved the puzzle. Everyone will spin to start the next round.");
+      return;
     }
-  }, [playSound, round]);
+    setCurrentPlayer(nextIndex);
+    setPhase("spin");
+    setMessage(`${players[nextIndex]?.name ?? "Next player"}, spin, buy a vowel, or solve!`);
+  }, [currentPlayer, eliminatedPlayers, players]);
 
   const nextRound = () => {
     const next = round + 1;
+    const previousWinner = roundWinner;
     setRound(next);
-    setRevealed([]);
+    setGuessedLetters([]);
     setStrikes(0);
+    setRoundBanks(Array(players.length).fill(0));
+    setRoundPrizes(Array(players.length).fill(0));
+    setEliminatedPlayers([]);
     setWheelResult(null);
-    setCurrentPlayer((player) => (players.length ? (player + 1) % players.length : 0));
-    setPhase("spin");
-    setMessage("New question! Spin the wheel.");
+    setGuess("");
+    setRoundWinner(null);
+    setPendingTurnLoss(null);
+    if (previousWinner !== null || players.length === 1) {
+      const starter = previousWinner ?? 0;
+      setCurrentPlayer(starter);
+      setQualifyingValues(Array(players.length).fill(0));
+      setPhase("spin");
+      setMessage(`${players[starter]?.name ?? "Player"} won the last round and starts this one!`);
+    } else {
+      setCurrentPlayer(0);
+      setQualifyingValues(Array(players.length).fill(0));
+      setPhase("qualifying");
+      setMessage(`${players[0]?.name ?? "Player 1"}, spin for the starting position!`);
+    }
     playSound("click");
   };
 
+  const loseTurn = useCallback(
+    (reason: string, bankrupt = false) => {
+      if ((freeSpins[currentPlayer] ?? 0) > 0) {
+        setPendingTurnLoss({ reason, bankrupt });
+        setWheelResult(null);
+        setPhase("freeSpinChoice");
+        setMessage(`${reason} Use a Free Spin to keep the turn, or save it and pass.`);
+        playSound("click");
+        return;
+      }
+
+      if (bankrupt) {
+        setRoundBanks((current) => current.map((bank, index) => (index === currentPlayer ? 0 : bank)));
+        setRoundPrizes((current) => current.map((prize, index) => (index === currentPlayer ? 0 : prize)));
+      }
+      setWheelResult(null);
+      setPhase("turnOver");
+      setMessage(reason);
+      playSound("wrong");
+    },
+    [currentPlayer, freeSpins, playSound],
+  );
+
+  const useFreeSpin = () => {
+    if (!pendingTurnLoss || (freeSpins[currentPlayer] ?? 0) < 1) return;
+    setFreeSpins((current) =>
+      current.map((tokens, index) => (index === currentPlayer ? tokens - 1 : tokens)),
+    );
+    setPendingTurnLoss(null);
+    setWheelResult(null);
+    setPhase("spin");
+    setMessage(`Free Spin used — ${players[currentPlayer]?.name} keeps the turn and round winnings!`);
+    playSound("click");
+  };
+
+  const declineFreeSpin = () => {
+    if (!pendingTurnLoss) return;
+    if (pendingTurnLoss.bankrupt) {
+      setRoundBanks((current) => current.map((bank, index) => (index === currentPlayer ? 0 : bank)));
+      setRoundPrizes((current) => current.map((prize, index) => (index === currentPlayer ? 0 : prize)));
+    }
+    const reason = pendingTurnLoss.reason;
+    setPendingTurnLoss(null);
+    setWheelResult(null);
+    setPhase("turnOver");
+    setMessage(`${reason} Free Spin saved for later.`);
+    playSound("wrong");
+  };
+
   const spinWheel = () => {
-    if (phase !== "spin") return;
+    if (phase !== "spin" && phase !== "qualifying") return;
     playSound("spin");
-    const resultIndex = Math.floor(Math.random() * WHEEL_RESULTS.length);
+    const cashIndexes = WHEEL_RESULTS
+      .map((result, index) => ({ result, index }))
+      .filter(({ result }) => result.type === "cash");
+    const availableQualifying = cashIndexes.filter(
+      ({ result }) => !qualifyingValues.includes(result.value),
+    );
+    const eligibleIndexes =
+      phase === "qualifying"
+        ? availableQualifying
+        : players.length === 1
+          ? WHEEL_RESULTS
+              .map((result, index) => ({ result, index }))
+              .filter(({ result }) => result.type !== "lose" && result.type !== "freeSpin")
+          : WHEEL_RESULTS.map((result, index) => ({ result, index }));
+    const selection = eligibleIndexes[Math.floor(Math.random() * eligibleIndexes.length)];
+    const resultIndex = selection.index;
     const result = WHEEL_RESULTS[resultIndex];
     const segmentAngle = 360 / WHEEL_RESULTS.length;
     const alignment = 360 - (resultIndex * segmentAngle + segmentAngle / 2);
@@ -248,21 +280,39 @@ export default function Home() {
     spinTimerRef.current = window.setTimeout(
       () => {
         setWheelResult(result);
-        if (result.type === "bankrupt") {
-          setPlayers((current) =>
-            current.map((player, index) =>
-              index === currentPlayer ? { ...player, money: 0 } : player,
-            ),
+        if (phase === "qualifying") {
+          const nextValues = qualifyingValues.map((value, index) =>
+            index === currentPlayer ? result.value : value,
           );
-          setMessage("BUST! Your total drops to $0.");
-          setPhase("turnOver");
-          playSound("wrong");
+          setQualifyingValues(nextValues);
+          if (currentPlayer < players.length - 1) {
+            const nextIndex = currentPlayer + 1;
+            setCurrentPlayer(nextIndex);
+            setPhase("qualifying");
+            setMessage(
+              `${players[currentPlayer]?.name} spun ${result.label}. ${players[nextIndex]?.name}, your opening spin!`,
+            );
+          } else {
+            const starter = nextValues.reduce(
+              (bestIndex, value, index, values) => (value > values[bestIndex] ? index : bestIndex),
+              0,
+            );
+            setCurrentPlayer(starter);
+            setPhase("spin");
+            setWheelResult(null);
+            setMessage(
+              `${players[starter]?.name} won the opening spin with $${nextValues[starter].toLocaleString()} and starts Round ${round + 1}!`,
+            );
+            playSound("win");
+          }
+          return;
+        }
+        if (result.type === "bankrupt") {
+          loseTurn("BANKRUPT! Round cash and prizes are returned, and the turn ends.", true);
         } else if (result.type === "lose") {
-          setMessage("Lose a turn! Pass it to the next player.");
-          setPhase("turnOver");
-          playSound("wrong");
+          loseTurn("Lose a Turn! Pass play to the next player.");
         } else {
-          setMessage(`${result.label} is live — give your answer!`);
+          setMessage(`${result.label} is live — call one consonant!`);
           setPhase("answer");
           playSound("click");
         }
@@ -273,51 +323,126 @@ export default function Home() {
 
   const submitGuess = (event: FormEvent) => {
     event.preventDefault();
-    if (phase !== "answer" || !guess.trim() || !wheelResult) return;
+    if ((phase !== "answer" && phase !== "spin") || !guess.trim()) return;
 
-    const submitted = normalize(guess);
-    const answerIndex = question.answers.findIndex((answer, index) => {
-      if (revealed.includes(index)) return false;
-      const accepted = [answer.label, ...(answer.aliases ?? [])].map(normalize);
-      return accepted.includes(submitted);
-    });
+    const submitted = normalizePhrase(guess);
+    setGuess("");
 
-    if (answerIndex >= 0) {
-      const answer = question.answers[answerIndex];
-      const won =
-        wheelResult.type === "multiplier"
-          ? answer.points * 25 * wheelResult.value
-          : wheelResult.value + answer.points * 10;
-      const nextRevealed = [...revealed, answerIndex];
-      setRevealed(nextRevealed);
-      setPlayers((current) =>
-        current.map((player, index) =>
-          index === currentPlayer ? { ...player, money: player.money + won } : player,
-        ),
-      );
-      setGuess("");
-      setWheelResult(null);
-      playSound("correct");
-      if (nextRevealed.length === question.answers.length) {
-        setMessage(`Perfect board! ${answer.label} earns $${won.toLocaleString()}.`);
-        finishRound();
-      } else {
-        setMessage(`Survey says… ${answer.label}! +$${won.toLocaleString()}`);
-        setPhase("spin");
+    if (phase === "spin") {
+      if (submitted.length === 1 && isVowel(submitted)) {
+        if (guessedLetters.includes(submitted)) {
+          setMessage(`${submitted} was already called. Choose another vowel, solve, or spin.`);
+          return;
+        }
+        if ((roundBanks[currentPlayer] ?? 0) < VOWEL_COST) {
+          setMessage(`A vowel costs $${VOWEL_COST}. Earn more round cash or spin first.`);
+          playSound("wrong");
+          return;
+        }
+        const matches = countLetter(puzzle.solution, submitted);
+        setRoundBanks((current) =>
+          current.map((bank, index) => (index === currentPlayer ? bank - VOWEL_COST : bank)),
+        );
+        setGuessedLetters((current) => [...current, submitted]);
+        setMessage(
+          matches > 0
+            ? `${submitted} appears ${matches} ${matches === 1 ? "time" : "times"}. $${VOWEL_COST} paid — keep your turn!`
+            : `No ${submitted}, but the vowel still costs $${VOWEL_COST}. You keep your turn.`,
+        );
+        playSound(matches > 0 ? "correct" : "wrong");
+        return;
       }
-    } else {
-      const nextStrikes = strikes + 1;
-      setStrikes(nextStrikes);
-      setGuess("");
-      setWheelResult(null);
+
+      if (submitted.length === 1) {
+        setMessage("Spin the wheel before calling a consonant, or enter the full puzzle to solve.");
+        return;
+      }
+
+      if (submitted === normalizePhrase(puzzle.solution)) {
+        const roundPayout = (roundBanks[currentPlayer] ?? 0) + (roundPrizes[currentPlayer] ?? 0);
+        const nextTotal = players[currentPlayer].money + roundPayout;
+        setPlayers((current) =>
+          current.map((player, index) =>
+            index === currentPlayer ? { ...player, money: nextTotal } : player,
+          ),
+        );
+        setGuessedLetters(allPuzzleLetters(puzzle.solution));
+        setRoundBanks(Array(players.length).fill(0));
+        setRoundPrizes(Array(players.length).fill(0));
+        setRoundWinner(currentPlayer);
+        playSound("win");
+        if (nextTotal >= WINNING_TOTAL) {
+          setPhase("gameOver");
+          setMessage(`${players[currentPlayer].name} solved it and reached $${WINNING_TOTAL.toLocaleString()}!`);
+        } else {
+          setPhase("roundOver");
+          setMessage(
+            `${players[currentPlayer].name} solved it! $${roundPayout.toLocaleString()} is banked for a total of $${nextTotal.toLocaleString()}.`,
+          );
+        }
+        return;
+      }
+
+      const nextEliminated = [...new Set([...eliminatedPlayers, currentPlayer])];
+      setEliminatedPlayers(nextEliminated);
+      setRoundBanks((current) => current.map((bank, index) => (index === currentPlayer ? 0 : bank)));
+      setRoundPrizes((current) => current.map((prize, index) => (index === currentPlayer ? 0 : prize)));
+      setStrikes((current) => current + 1);
       playSound("wrong");
-      if (nextStrikes >= 3) {
-        setMessage("Three strikes! That ends the round.");
-        finishRound();
+      if (players.length === 1 || nextEliminated.length >= players.length) {
+        setRoundWinner(null);
+        setRoundBanks(Array(players.length).fill(0));
+        setRoundPrizes(Array(players.length).fill(0));
+        setPhase("roundOver");
+        setMessage("That solution was incorrect. The round ends with no winner.");
       } else {
-        setMessage(`Not on the board — strike ${nextStrikes}!`);
         setPhase("turnOver");
+        setMessage("Incorrect solution. Round winnings are returned, and this player sits out until the next round.");
       }
+      return;
+    }
+
+    if (!wheelResult) return;
+    if (!isConsonant(submitted)) {
+      setMessage("After a spin, call exactly one consonant.");
+      return;
+    }
+
+    if (guessedLetters.includes(submitted)) {
+      setStrikes((current) => current + 1);
+      loseTurn(`${submitted} was already called. The turn ends.`);
+      return;
+    }
+
+    const matches = countLetter(puzzle.solution, submitted);
+    setGuessedLetters((current) => [...current, submitted]);
+    setWheelResult(null);
+
+    if (matches > 0) {
+      let rewardMessage = "";
+      if (wheelResult.type === "cash") {
+        const won = wheelResult.value * matches;
+        setRoundBanks((current) =>
+          current.map((bank, index) => (index === currentPlayer ? bank + won : bank)),
+        );
+        rewardMessage = `+$${won.toLocaleString()} in round cash.`;
+      } else if (wheelResult.type === "prize") {
+        setRoundPrizes((current) =>
+          current.map((prize, index) => (index === currentPlayer ? prize + PRIZE_VALUE : prize)),
+        );
+        rewardMessage = `Prize wedge worth $${PRIZE_VALUE.toLocaleString()} secured for this round.`;
+      } else if (wheelResult.type === "freeSpin") {
+        setFreeSpins((current) =>
+          current.map((tokens, index) => (index === currentPlayer ? tokens + 1 : tokens)),
+        );
+        rewardMessage = "Free Spin token earned.";
+      }
+      playSound("correct");
+      setMessage(`${submitted} appears ${matches} ${matches === 1 ? "time" : "times"}. ${rewardMessage}`);
+      setPhase("spin");
+    } else {
+      setStrikes((current) => current + 1);
+      loseTurn(`There is no ${submitted} in the puzzle. The turn ends.`);
     }
   };
 
@@ -362,7 +487,7 @@ export default function Home() {
                 <span className="title-of">OF</span>
                 <span className="title-goods">GOODS</span>
               </h1>
-              <p className="menu-copy">Spin big. Think fast. Turn the top survey answers into a fortune!</p>
+              <p className="menu-copy">Spin big. Call letters. Solve the puzzle and build a fortune!</p>
 
               <div className="menu-buttons">
                 <button className="primary-play" data-testid="play-button" onClick={() => goTo("setup")}>
@@ -377,7 +502,7 @@ export default function Home() {
               <div className="menu-features" aria-label="Game features">
                 <span>⚡ Quick rounds</span>
                 <span>◎ Family friendly</span>
-                <span>★ 5 survey boards</span>
+                <span>★ Official wheel rules</span>
               </div>
             </div>
           </div>
@@ -427,12 +552,12 @@ export default function Home() {
           <button className="back-button" onClick={() => goTo("menu")}>← MENU</button>
           <div className="rules-card">
             <p className="eyebrow"><span /> HOW TO PLAY <span /></p>
-            <h2>Spin. Answer. Bank it.</h2>
+            <h2>Spin. Call. Solve it.</h2>
             <div className="rule-grid">
-              <article><b>1</b><div><h3>Spin the wheel</h3><p>Land on cash or a multiplier. Watch out for Lose and Bust.</p></div></article>
-              <article><b>2</b><div><h3>Give an answer</h3><p>The question stays on screen. Match one of the six survey answers.</p></div></article>
-              <article><b>3</b><div><h3>Build your fortune</h3><p>Correct answers add money. Three team strikes end the round.</p></div></article>
-              <article><b>4</b><div><h3>Top the leaderboard</h3><p>After five questions, the player with the most money wins.</p></div></article>
+              <article><b>1</b><div><h3>Spin and call</h3><p>Spin, then call one consonant. Earn the wheel value for every match.</p></div></article>
+              <article><b>2</b><div><h3>Buy vowels</h3><p>Before spinning, spend $250 of your round cash to call a vowel.</p></div></article>
+              <article><b>3</b><div><h3>Solve the puzzle</h3><p>Before spinning, enter the full solution. The winner banks that round’s cash and prizes.</p></div></article>
+              <article><b>4</b><div><h3>Reach $10,000</h3><p>Bankrupt loses only that round’s winnings. The first player to $10,000 wins.</p></div></article>
             </div>
             <button className="start-button" onClick={() => goTo("setup")}>LET’S PLAY <span>→</span></button>
           </div>
@@ -443,7 +568,7 @@ export default function Home() {
         <section className="game-screen" data-testid="game-screen">
           <header className="game-header">
             <button className="mini-logo" onClick={() => goTo("menu")} aria-label="Return to menu"><b>W</b><span>WHEEL OF<br />GOODS</span></button>
-            <div className="round-label">ROUND <strong>{round + 1}</strong><small> OF {QUESTIONS.length}</small></div>
+            <div className="round-label">ROUND <strong>{round + 1}</strong><small> TO $10K</small></div>
             <div className="header-actions">
               <button className="icon-button small" onClick={() => setSoundOn((value) => !value)} aria-label={soundOn ? "Mute sound" : "Turn sound on"}>{soundOn ? "♪" : "×"}</button>
               <button className="icon-button small" onClick={() => setSettingsOpen(true)} aria-label="Open settings">⚙</button>
@@ -452,8 +577,8 @@ export default function Home() {
 
           <div className="question-bar" data-testid="question-bar">
             <span className="question-number">Q{round + 1}</span>
-            <h2>{question.prompt}</h2>
-            <div className="strikes" aria-label={`${strikes} of 3 strikes`}>
+            <h2>{puzzle.category} • {puzzle.clue}</h2>
+            <div className="strikes" aria-label={`${strikes} missed calls`}>
               {[0, 1, 2].map((strike) => <span key={strike} className={strike < strikes ? "hit" : ""}>×</span>)}
             </div>
           </div>
@@ -480,22 +605,23 @@ export default function Home() {
                 className="spin-button"
                 data-testid="spin-button"
                 onClick={spinWheel}
-                disabled={phase !== "spin"}
+                disabled={phase !== "spin" && phase !== "qualifying"}
               >
-                {phase === "spinning" ? "SPINNING…" : "SPIN THE WHEEL"}
+                {phase === "spinning" ? "SPINNING…" : phase === "qualifying" ? "OPENING SPIN" : "SPIN THE WHEEL"}
               </button>
             </section>
 
-            <section className="answer-zone" aria-label="Survey answers">
-              <div className="answer-heading"><span>TOP ANSWERS</span><span>{revealed.length}/{question.answers.length} FOUND</span></div>
+            <section className="answer-zone" aria-label="Puzzle board">
+              <div className="answer-heading"><span>PUZZLE BOARD</span><span>{guessedLetters.length} LETTERS CALLED</span></div>
               <ol className="answer-board" data-testid="answer-board">
-                {question.answers.map((answer, index) => {
-                  const isRevealed = revealed.includes(index);
+                {puzzle.words.map((word, index) => {
+                  const isRevealed = isWordRevealed(word, guessedLetters);
+                  const visibleWord = maskWord(word, guessedLetters);
                   return (
-                    <li key={answer.label} className={isRevealed ? "revealed" : ""}>
+                    <li key={`${word}-${index}`} className={isRevealed ? "revealed" : ""}>
                       <b>{index + 1}</b>
-                      <span>{isRevealed ? answer.label : <i aria-label="hidden answer">••••••••••••</i>}</span>
-                      <strong>{isRevealed ? answer.points : "?"}</strong>
+                      <span>{isRevealed ? word : <i aria-label="hidden letters">{visibleWord}</i>}</span>
+                      <strong>{word.length}</strong>
                     </li>
                   );
                 })}
@@ -511,20 +637,26 @@ export default function Home() {
             <div className="score-strip" aria-label="Player money">
               {players.map((player, index) => (
                 <div key={`${player.name}-${index}`} className={index === currentPlayer ? "current" : ""} style={{ "--player-color": player.color } as React.CSSProperties}>
-                  <span>{player.name}</span><strong>${player.money.toLocaleString()}</strong>
+                  <span>{player.name}</span><strong>${(player.money + (roundBanks[index] ?? 0) + (roundPrizes[index] ?? 0)).toLocaleString()}</strong>
                 </div>
               ))}
             </div>
 
-            {phase === "answer" && (
+            {(phase === "answer" || phase === "spin") && (
               <form className="answer-form" onSubmit={submitGuess} data-testid="answer-form">
-                <label htmlFor="guess">YOUR ANSWER</label>
-                <input id="guess" data-testid="answer-input" value={guess} onChange={(event) => setGuess(event.target.value)} placeholder="Type an answer…" autoComplete="off" autoFocus />
+                <label htmlFor="guess">{phase === "answer" ? "CALL A CONSONANT" : "BUY A VOWEL OR SOLVE"}</label>
+                <input id="guess" data-testid="answer-input" value={guess} onChange={(event) => setGuess(event.target.value)} placeholder={phase === "answer" ? "Type one consonant…" : "Type a vowel or full solution…"} autoComplete="off" autoFocus />
                 <button type="submit" disabled={!guess.trim()}>LOCK IT IN</button>
               </form>
             )}
             {phase === "turnOver" && <button className="wide-action" data-testid="next-player-button" onClick={advancePlayer}>NEXT PLAYER <span>→</span></button>}
-            {phase === "roundOver" && <button className="wide-action gold" data-testid="next-round-button" onClick={nextRound}>NEXT QUESTION <span>→</span></button>}
+            {phase === "freeSpinChoice" && (
+              <div className="game-over-actions">
+                <button className="wide-action gold" onClick={useFreeSpin}>USE FREE SPIN <span>↻</span></button>
+                <button className="wide-action" onClick={declineFreeSpin}>SAVE IT &amp; PASS <span>→</span></button>
+              </div>
+            )}
+            {phase === "roundOver" && <button className="wide-action gold" data-testid="next-round-button" onClick={nextRound}>NEXT PUZZLE <span>→</span></button>}
             {phase === "gameOver" && (
               <div className="game-over-actions">
                 <p>🏆 {winner?.name} wins with <strong>${winner?.money.toLocaleString()}</strong>!</p>

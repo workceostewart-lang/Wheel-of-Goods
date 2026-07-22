@@ -1,10 +1,10 @@
 # Wheel of Goods
 
-Wheel of Goods is a colorful local multiplayer survey-and-wheel game for PC and mobile, part of Fantom Zone Arcade.
+Wheel of Goods is a colorful local multiplayer wheel-and-word-puzzle game for PC and mobile, part of Fantom Zone Arcade.
 
 ## Play
 
-Choose 1–4 players, spin the wheel, and type answers that match the six survey responses on the board. Correct answers earn the wheel prize plus a points bonus. Three strikes end a round; the biggest fortune after five rounds wins.
+Choose 1–4 players, spin the wheel, call consonants, buy vowels, and solve six-word puzzles. Correct consonants earn the wheel value for every matching letter. The round solver banks that round’s cash and prizes, and the first player to $10,000 wins.
 
 ## Development
 
