@@ -1,7 +1,7 @@
 name: Wheel of Goods
 brand: Fantom Zone Arcade
 current_focus: Expand the puzzle bank and deal a fresh randomized set for every new game.
-status: ready_to_deploy
+status: complete
 
 official_rules_prd:
   source: https://www.hasbro.com/common/instruct/wheel_of_fortune_rules_and_letter_guide.pdf
@@ -58,13 +58,13 @@ verification:
   rendered_shell_tests: passed_2_of_2
   production_build: passed
   lint: passed_zero_warnings
-  cloudflare_deploy: pending
-  live_domain_check: pending
-  github_push: pending
+  cloudflare_deploy: passed_worker_version_a1ef0fb1-a7d8-464e-ba8a-5eb6106cfcb7
+  live_domain_check: passed_100_puzzle_bank_assets
+  github_push: passed
 
 deployment:
   github: git@github.com:workceostewart-lang/Wheel-of-Goods.git
   domain: wheel-of-goods.fantomzone.app
   platform: Cloudflare
-  sites_version: 3
+  sites_version: 4
   sites_production: https://wheel-of-goods.unknownfigure.chatgpt.site
