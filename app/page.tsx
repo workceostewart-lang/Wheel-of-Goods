@@ -4,6 +4,8 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import {
   allPuzzleLetters,
   countLetter,
+  createPuzzleDeck,
+  GAME_PUZZLE_COUNT,
   isConsonant,
   isPuzzleCharacterRevealed,
   isVowel,
@@ -68,6 +70,7 @@ export default function Home() {
   const [eliminatedPlayers, setEliminatedPlayers] = useState<number[]>([]);
   const [qualifyingValues, setQualifyingValues] = useState<number[]>([]);
   const [roundWinner, setRoundWinner] = useState<number | null>(null);
+  const [puzzleDeck, setPuzzleDeck] = useState(() => PUZZLES.slice(0, GAME_PUZZLE_COUNT));
   const [guess, setGuess] = useState("");
   const [message, setMessage] = useState("Spin the wheel to start!");
   const [soundOn, setSoundOn] = useState(true);
@@ -76,7 +79,7 @@ export default function Home() {
   const audioRef = useRef<AudioContext | null>(null);
   const spinTimerRef = useRef<number | null>(null);
 
-  const puzzle = PUZZLES[round % PUZZLES.length];
+  const puzzle = puzzleDeck[round % puzzleDeck.length] ?? PUZZLES[0];
 
   useEffect(() => {
     return () => {
@@ -131,6 +134,9 @@ export default function Home() {
       color: PLAYER_COLORS[index],
     }));
     setPlayers(gamePlayers);
+    setPuzzleDeck((currentDeck) =>
+      createPuzzleDeck(PUZZLES, Math.random, currentDeck[0]?.solution),
+    );
     setCurrentPlayer(0);
     setRound(0);
     setGuessedLetters([]);

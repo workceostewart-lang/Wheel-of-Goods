@@ -1,7 +1,7 @@
 name: Wheel of Goods
 brand: Fantom Zone Arcade
-current_focus: Make the puzzle board match the show's progressive sentence-reveal loop.
-status: complete
+current_focus: Expand the puzzle bank and deal a fresh randomized set for every new game.
+status: ready_to_deploy
 
 official_rules_prd:
   source: https://www.hasbro.com/common/instruct/wheel_of_fortune_rules_and_letter_guide.pdf
@@ -24,11 +24,15 @@ official_rules_prd:
 
 non_negotiable_ui_invariants:
   - Do not change the existing visual design, colors, spacing, typography, responsive layout, or component structure.
-  - Keep the puzzle prompt, all six board rows, full wheel, status, active player, and money visible together on mobile.
+  - Keep the puzzle prompt, full sentence board, wheel, status, active player, and money visible together on mobile.
   - Reuse the existing spin, answer, next-player, and next-round controls for the official rule actions.
   - Preserve sound, reduced-motion support, keyboard entry, touch controls, and accessible labels.
 
 gameplay_state:
+  puzzle_bank: 100_original_puzzles
+  puzzles_per_game: 24_unique_randomized
+  fresh_deck_each_new_game: implemented
+  repeated_starting_puzzle_guard: implemented
   sentence_blank_board: implemented
   every_matching_letter_reveals: implemented
   progressive_phrase_build: implemented
@@ -48,14 +52,15 @@ gameplay_state:
   solo_variation: implemented
 
 verification:
-  pure_rule_tests: passed_7_of_7
+  puzzle_bank_validation: passed_100_unique_board_safe
+  random_deck_regression: passed
+  pure_rule_tests: passed_8_of_8
   rendered_shell_tests: passed_2_of_2
   production_build: passed
   lint: passed_zero_warnings
-  sentence_reveal_regression: passed_blank_a_and_f_examples
-  cloudflare_deploy: passed_worker_version_89e4f95c-7e4e-4297-92df-83aac0547035
-  live_domain_check: passed_sentence_board_assets
-  github_push: passed
+  cloudflare_deploy: pending
+  live_domain_check: pending
+  github_push: pending
 
 deployment:
   github: git@github.com:workceostewart-lang/Wheel-of-Goods.git

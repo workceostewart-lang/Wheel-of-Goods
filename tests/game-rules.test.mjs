@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   allPuzzleLetters,
   countLetter,
+  createPuzzleDeck,
+  GAME_PUZZLE_COUNT,
   isConsonant,
   isPuzzleCharacterRevealed,
   isVowel,
@@ -13,6 +15,7 @@ import {
   normalizePhrase,
   PRIZE_VALUE,
   PUZZLES,
+  shufflePuzzles,
   VOWEL_COST,
   WINNING_TOTAL,
 } from "../app/game-rules.ts";
@@ -59,12 +62,29 @@ test("turn order skips players eliminated by an incorrect solution", () => {
   assert.equal(nextActivePlayer(0, 2, [0, 1]), null);
 });
 
-test("every puzzle fits the six-word sentence board", () => {
-  assert.ok(PUZZLES.length >= 10);
+test("the game ships a large, unique, board-safe puzzle bank", () => {
+  assert.equal(PUZZLES.length, 100);
+  assert.equal(new Set(PUZZLES.map((puzzle) => puzzle.solution)).size, PUZZLES.length);
   for (const puzzle of PUZZLES) {
-    assert.equal(puzzle.words.length, 6, puzzle.solution);
+    assert.ok(puzzle.words.length >= 3 && puzzle.words.length <= 7, puzzle.solution);
     assert.equal(puzzle.words.join(" "), puzzle.solution);
+    assert.match(puzzle.solution, /^[A-Z0-9 ]+$/);
+    assert.ok(Math.max(...puzzle.words.map((word) => word.length)) <= 12, puzzle.solution);
     assert.ok(puzzle.category.length > 0);
     assert.ok(puzzle.clue.length > 0);
   }
+});
+
+test("each new game receives a shuffled set without mutating the puzzle bank", () => {
+  const source = PUZZLES.slice(0, 30);
+  const originalOrder = source.map((puzzle) => puzzle.solution);
+  const shuffled = shufflePuzzles(source, () => 0);
+  assert.deepEqual(source.map((puzzle) => puzzle.solution), originalOrder);
+  assert.notDeepEqual(shuffled.map((puzzle) => puzzle.solution), originalOrder);
+
+  const firstDeck = createPuzzleDeck(PUZZLES, () => 0);
+  const nextDeck = createPuzzleDeck(PUZZLES, () => 0, firstDeck[0].solution);
+  assert.equal(firstDeck.length, GAME_PUZZLE_COUNT);
+  assert.equal(new Set(firstDeck.map((puzzle) => puzzle.solution)).size, GAME_PUZZLE_COUNT);
+  assert.notEqual(nextDeck[0].solution, firstDeck[0].solution);
 });
