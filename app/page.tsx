@@ -5,9 +5,9 @@ import {
   allPuzzleLetters,
   countLetter,
   isConsonant,
+  isPuzzleCharacterRevealed,
   isVowel,
-  isWordRevealed,
-  maskWord,
+  maskPhrase,
   nextActivePlayer,
   normalizePhrase,
   PRIZE_VALUE,
@@ -613,19 +613,28 @@ export default function Home() {
 
             <section className="answer-zone" aria-label="Puzzle board">
               <div className="answer-heading"><span>PUZZLE BOARD</span><span>{guessedLetters.length} LETTERS CALLED</span></div>
-              <ol className="answer-board" data-testid="answer-board">
-                {puzzle.words.map((word, index) => {
-                  const isRevealed = isWordRevealed(word, guessedLetters);
-                  const visibleWord = maskWord(word, guessedLetters);
-                  return (
-                    <li key={`${word}-${index}`} className={isRevealed ? "revealed" : ""}>
-                      <b>{index + 1}</b>
-                      <span>{isRevealed ? word : <i aria-label="hidden letters">{visibleWord}</i>}</span>
-                      <strong>{word.length}</strong>
-                    </li>
-                  );
-                })}
-              </ol>
+              <div
+                className="answer-board"
+                data-testid="answer-board"
+                aria-label={`Puzzle: ${maskPhrase(puzzle.solution, guessedLetters)}`}
+                aria-live="polite"
+              >
+                {puzzle.words.map((word, wordIndex) => (
+                  <span className="puzzle-word" key={`${word}-${wordIndex}`} aria-hidden="true">
+                    {[...word].map((character, characterIndex) => {
+                      const isRevealed = isPuzzleCharacterRevealed(character, guessedLetters);
+                      return (
+                        <span
+                          className={`puzzle-letter ${isRevealed ? "revealed" : "hidden"}`}
+                          key={`${character}-${characterIndex}`}
+                        >
+                          {isRevealed ? character : "_"}
+                        </span>
+                      );
+                    })}
+                  </span>
+                ))}
+              </div>
               <div className="status-callout" aria-live="polite" data-testid="game-message">
                 <span>{wheelResult ? wheelResult.label : phase === "answer" ? "?" : "★"}</span>
                 <p>{message}</p>

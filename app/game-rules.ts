@@ -101,15 +101,27 @@ export const countLetter = (solution: string, letter: string) => {
   return [...normalizePhrase(solution)].filter((character) => character === target).length;
 };
 
-export const maskWord = (word: string, guessedLetters: string[]) => {
-  const guessed = new Set(guessedLetters.map((letter) => letter.toUpperCase()));
-  return [...word.toUpperCase()]
-    .map((character) => (/[A-Z0-9]/.test(character) && !guessed.has(character) ? "•" : character))
-    .join("");
+export const isPuzzleCharacterRevealed = (character: string, guessedLetters: string[]) => {
+  const normalizedCharacter = character.toUpperCase();
+  return !/[A-Z0-9]/.test(normalizedCharacter) ||
+    guessedLetters.some((letter) => letter.toUpperCase() === normalizedCharacter);
 };
 
+export const maskWord = (word: string, guessedLetters: string[]) => {
+  return [...word.toUpperCase()]
+    .map((character) => (isPuzzleCharacterRevealed(character, guessedLetters) ? character : "_"))
+    .join(" ");
+};
+
+export const maskPhrase = (solution: string, guessedLetters: string[]) =>
+  solution
+    .trim()
+    .split(/\s+/)
+    .map((word) => maskWord(word, guessedLetters))
+    .join("  ");
+
 export const isWordRevealed = (word: string, guessedLetters: string[]) =>
-  !maskWord(word, guessedLetters).includes("•");
+  !maskWord(word, guessedLetters).includes("_");
 
 export const allPuzzleLetters = (solution: string) =>
   [...new Set([...normalizePhrase(solution)].filter((character) => /[A-Z]/.test(character)))];

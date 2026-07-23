@@ -5,7 +5,9 @@ import {
   allPuzzleLetters,
   countLetter,
   isConsonant,
+  isPuzzleCharacterRevealed,
   isVowel,
+  maskPhrase,
   maskWord,
   nextActivePlayer,
   normalizePhrase,
@@ -27,12 +29,18 @@ test("normalizes puzzle solutions for exact, punctuation-safe solving", () => {
 
 test("a correct consonant is paid once for every occurrence", () => {
   assert.equal(countLetter("THE BIGGEST SALE OF THE YEAR", "T"), 3);
+  assert.equal(countLetter("FINAL ANSWER", "A"), 2);
   assert.equal(countLetter("THE BIGGEST SALE OF THE YEAR", "Z"), 0);
 });
 
 test("the puzzle board reveals called letters and keeps the rest hidden", () => {
-  assert.equal(maskWord("DEAL", ["D", "A"]), "D•A•");
+  assert.equal(maskWord("DEAL", ["D", "A"]), "D _ A _");
   assert.equal(maskWord("A", ["A"]), "A");
+  assert.equal(maskPhrase("FINAL ANSWER", []), "_ _ _ _ _  _ _ _ _ _ _");
+  assert.equal(maskPhrase("FINAL ANSWER", ["A"]), "_ _ _ A _  A _ _ _ _ _");
+  assert.equal(maskPhrase("FINAL ANSWER", ["A", "F"]), "F _ _ A _  A _ _ _ _ _");
+  assert.equal(isPuzzleCharacterRevealed("A", ["a"]), true);
+  assert.equal(isPuzzleCharacterRevealed("F", ["A"]), false);
   assert.deepEqual(allPuzzleLetters("A BAD BAG"), ["A", "B", "D", "G"]);
 });
 
@@ -51,7 +59,7 @@ test("turn order skips players eliminated by an incorrect solution", () => {
   assert.equal(nextActivePlayer(0, 2, [0, 1]), null);
 });
 
-test("every puzzle fits the existing six-row board", () => {
+test("every puzzle fits the six-word sentence board", () => {
   assert.ok(PUZZLES.length >= 10);
   for (const puzzle of PUZZLES) {
     assert.equal(puzzle.words.length, 6, puzzle.solution);
